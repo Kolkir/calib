@@ -1,0 +1,174 @@
+# data file for the Fltk User Interface Designer (fluid)
+version 1.0300 
+header_name {.h} 
+code_name {.cxx}
+class CalibUI {open
+} {
+  Function {CalibUI()} {open
+  } {
+    Fl_Window mainWindow {
+      label {Camera calibration tool} open
+      xywh {888 168 640 480} type Double resizable size_range {640 480 0 0} visible
+    } {
+      Fl_Wizard wizard {open
+        xywh {0 0 640 480} resizable
+      } {
+        Fl_Group {} {open selected
+          xywh {0 0 640 480}
+        } {
+          Fl_Group {} {open
+            xywh {0 0 640 440}
+          } {
+            Fl_Value_Input vertCornersInput {
+              label {Vertical corners count:}
+              user_data this
+              callback OnPatternChanged
+              xywh {175 35 30 24} minimum 1 maximum 100 step 1 value 6
+            }
+            Fl_Value_Input horizCornersInput {
+              label {Horisontal corners count:}
+              user_data this
+              callback OnPatternChanged
+              xywh {175 65 30 24} minimum 1 maximum 100 step 1 value 7
+            }
+            Fl_Value_Input cellSizeInput {
+              label {Cell size (mm):}
+              user_data this
+              callback OnPatternChanged
+              xywh {175 95 30 24} minimum 5 maximum 1000 step 1 value 30
+            }
+            Fl_Check_Button realSizeViewChk {
+              label {Real size view}
+              callback OnRealSizeView
+              xywh {90 125 115 15} down_box DOWN_BOX value 1
+            }
+            Fl_Box {} {
+              label {Pattern settings}
+              xywh {0 0 640 30} labelfont 3
+            }
+            Fl_Scroll imageScroll {open
+              xywh {210 35 425 400} box DOWN_BOX resizable
+            } {
+              Fl_Box patternImageBox {
+                xywh {210 35 425 400}
+                code0 {\#include "PatternImageBox.h"}
+                class PatternImageBox
+              }
+            }
+          }
+          Fl_Group {} {open
+            xywh {0 440 640 40}
+          } {
+            Fl_Button {} {
+              label Next
+              callback OnPatternNext
+              xywh {562 450 64 20}
+            }
+            Fl_Button {} {
+              label {Print pattern}
+              callback OnPrintPattern
+              xywh {455 450 90 20}
+            }
+            Fl_Button {} {
+              label {Fit to printer}
+              callback OnFitToPrinter
+              xywh {350 450 87 20}
+            }
+          }
+        }
+        Fl_Group {} {open
+          xywh {0 0 640 480} hide
+        } {
+          Fl_Group {} {open
+            xywh {0 0 640 440}
+          } {
+            Fl_Box {} {
+              label {Calibration images}
+              xywh {0 0 640 30} labelfont 3
+            }
+            Fl_File_Browser calibImageBrowser {
+              callback OnCalibImageSelected
+              xywh {5 35 220 370} type Hold
+            }
+            Fl_Check_Button stretchImagesChk {
+              label {Stretch images}
+              callback OnStretchImages
+              xywh {6 413 219 15} down_box DOWN_BOX
+            }
+            Fl_Scroll calibImageScroll {open
+              xywh {230 35 405 400} box DOWN_FRAME resizable
+            } {
+              Fl_Box calibImageBox {
+                xywh {230 35 405 400}
+                code0 {\#include "ImageBox.h"}
+                class ImageBox
+              }
+            }
+          }
+          Fl_Group {} {open
+            xywh {0 440 640 40}
+          } {
+            Fl_Button {} {
+              label Next
+              callback OnCalibImagesNext
+              xywh {572 450 64 20}
+            }
+            Fl_Button {} {
+              label Prev
+              callback OnCalibImagesPrev
+              xywh {490 450 64 20}
+            }
+            Fl_Button {} {
+              label {Add image}
+              callback OnAddCalibImage
+              xywh {312 450 75 20}
+            }
+            Fl_Button {} {
+              label {Del image}
+              callback OnDelCalibImage
+              xywh {403 450 69 20}
+            }
+          }
+        }
+        Fl_Group {} {open
+          xywh {0 0 640 480} hide
+        } {
+          Fl_Box {} {
+            label {Calibration process}
+            xywh {0 0 640 30} labelfont 3
+          }
+          Fl_Group {} {open
+            xywh {0 35 640 400}
+          } {
+            Fl_Text_Display calibTextResult {
+              xywh {0 35 640 400} resizable
+            }
+          }
+          Fl_Group {} {open
+            xywh {0 435 640 45}
+          } {
+            Fl_Button {} {
+              label Prev
+              callback OnCalibPrev
+              xywh {563 447 64 20}
+            }
+            Fl_Button {} {
+              label Calibrate
+              callback OnStartCalib
+              xywh {397 447 64 20}
+            }
+            Fl_Button {} {
+              label {Save result}
+              callback OnCalibSave
+              xywh {473 447 80 20}
+            }
+          }
+        }
+      }
+    }
+  }
+  Function {Show(int argc, char** argv)} {open return_type void
+  } {
+    code {mainWindow->show(argc, argv);} {}
+  }
+} 
