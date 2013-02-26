@@ -20,6 +20,7 @@ std::vector<float> reprojErrs;
 double totalAvgErr = 0;
 std::unique_ptr<Fl_Text_Buffer> resultTextBuff;
 std::vector<std::vector<cv::Point2f> > imagesPoints;
+std::map<std::string, int> imagesPointsMap;
 
 int main (int argc, char *argv[]) 
 {
@@ -207,9 +208,10 @@ void OnCalibImageSelected(class Fl_File_Browser* b, void*)
 				ui->calibImageBox->image(simg);
 				ui->calibImageBox->size(simg->w(), simg->h());
 				ui->calibImageBox->redraw();
-				if (static_cast<size_t>(selection - 1) < imagesPoints.size())
+				std::map<std::string, int>::iterator i = imagesPointsMap.find(fileName);
+				if (i != imagesPointsMap.end())
 				{
-					ui->calibImageBox->SetImagePoints(&imagesPoints[selection - 1]);
+					ui->calibImageBox->SetImagePoints(&imagesPoints[i->second]);
 				}
 				else
 				{
@@ -222,6 +224,77 @@ void OnCalibImageSelected(class Fl_File_Browser* b, void*)
 			}
 		}
 		ui->calibImageScroll->redraw();
+	}
+}
+
+namespace
+{
+template<class T>
+int GetPixelOffset(T* img, int x, int y)
+{
+	return (x * img->d()) + (y * img->w() * img->d());
+}
+}
+
+void OnUndistort(class Fl_Button *b,void *)
+{
+	CalibUI* ui = reinterpret_cast<CalibUI*>(b->window()->user_data());
+	if (ui != nullptr)
+	{
+		Fl_Image* img = ui->calibImageBox->image();
+		
+		if (img != nullptr)
+		{
+			if (distCoeffs.rows == 5)
+			{
+				double k1 = distCoeffs.at<double>(0, 0);
+				double k2 = distCoeffs.at<double>(1, 0);
+				double k3 = distCoeffs.at<double>(2, 0);
+				double p1 = distCoeffs.at<double>(3, 0);
+				double p2 = distCoeffs.at<double>(4, 0);
+
+				double fx = cameraMatrix.at<double>(0, 0);
+				double fy = cameraMatrix.at<double>(1, 1);
+				double px = cameraMatrix.at<double>(0, 2);
+				double py = cameraMatrix.at<double>(1, 2);
+
+				std::vector<unsigned char> newData(img->w() * img->h() * img->d());
+
+				const unsigned char* src = reinterpret_cast<const unsigned char*>(img->data()[0]);
+				unsigned char* dst = newData.data();
+
+
+				for (int x = 0; x < img->w(); ++x)
+				{
+					for (int y = 0; y < img->h(); ++y)
+					{
+						double xi = (x - px) / fx;
+						double yi = (y - py) / fy;
+
+						double r = (sqrt(xi*xi + yi*yi ));
+						double xc = x * (1 + k1 * pow(r, 2) + k2 * pow(r, 4) + k3 * pow(r, 6)) + (2 * p1 * xi * yi + p2 * (pow(r, 2) + 2 * pow(xi, 2)));
+						double yc = y * (1 + k1 * pow(r, 2) + k2 * pow(r, 4) + k3 * pow(r, 6)) + (p1 * (pow(r, 2) + 2 * pow(yi + 0.0, 2)) + 2 * p2 * xi * yi);
+
+						int xcc = static_cast<int>((xc * fx) + px);
+						int ycc = static_cast<int>((yc * fy) + py);
+
+						const unsigned char* s = src + GetPixelOffset(img, xcc, ycc);
+						unsigned char*       d = dst + GetPixelOffset(img, x, y);
+
+						for (int i = 0; i < img->d(); ++i)
+						{
+							*(d + i) = *(s + i);
+						}
+					}
+				}
+
+				std::unique_ptr<Fl_RGB_Image> newImage(new Fl_RGB_Image(newData.data(), img->w(), img->h(), img->d(), 0));
+				ui->calibImageBox->image(newImage->copy());
+				ui->calibImageBox->redraw();
+		
+				delete img;
+			}
+		}
 	}
 }
 
@@ -334,10 +407,11 @@ void OnStartCalib(class Fl_Button* b, void*)
 	{
 		ui->calibImageBox->SetImagePoints(nullptr);
 		cv::Size imageSize;
-		cv::Size boardSize(static_cast<int>(ui->horizCornersInput->value()), 
-							static_cast<int>(ui->vertCornersInput->value()));
+		cv::Size boardSize(static_cast<int>(ui->vertCornersInput->value()),
+							static_cast<int>(ui->horizCornersInput->value()));
 		
 		imagesPoints.clear();
+		imagesPointsMap.clear();
 		ui->calibTextResult->buffer(resultTextBuff.get());
 
 		resultTextBuff->text("Calibration in progress ...");
@@ -348,16 +422,15 @@ void OnStartCalib(class Fl_Button* b, void*)
 		{
 			const char* fileName = ui->calibImageBrowser->text(i);
 			Fl_Shared_Image *img = Fl_Shared_Image::get(fileName);
-			cv::Mat mat = cv::Mat::zeros(img->w(), img->h(), CV_8UC3);
+			cv::Mat mat = cv::Mat::zeros(img->h(), img->w(), CV_8UC3);
 
-			
 			for (int x = 0; x < img->w(); ++x)
 			{
 				for (int y = 0; y < img->h(); ++y)
 				{
-					cv::Vec3b& cvp = mat.at<cv::Vec3b>(x,y);
+					cv::Vec3b& cvp = mat.at<cv::Vec3b>(y, x);
 					
-					long index = (y * img->w() * img->d()) + (x * img->d());
+					long index = (x * img->d()) + (y * (img->w() + img->ld())* img->d()) ;
 					switch ( img->count() ) 
 					{
 					case 1: 
@@ -385,8 +458,7 @@ void OnStartCalib(class Fl_Button* b, void*)
 			imageSize = mat.size();
 
 			std::vector<cv::Point2f> pointbuf;
-			bool found = cv::findChessboardCorners(mat, boardSize, pointbuf,
-				CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FAST_CHECK | CV_CALIB_CB_NORMALIZE_IMAGE);
+			bool found = cv::findChessboardCorners(mat, boardSize, pointbuf, CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS);
 
 			cv::Mat matGray;
 			cv::cvtColor(mat, matGray, CV_BGR2GRAY);
@@ -395,8 +467,9 @@ void OnStartCalib(class Fl_Button* b, void*)
 				cv::cornerSubPix(matGray, pointbuf, cv::Size(11,11),
 							cv::Size(-1,-1), cv::TermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 30, 0.1 ));
 				imagesPoints.push_back(pointbuf);
+				imagesPointsMap.insert(std::make_pair(fileName, imagesPoints.size() - 1));
 			}
-			img->release();
+			//img->release();
 		}
 
 		if (!imagesPoints.empty())
