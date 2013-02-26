@@ -272,19 +272,22 @@ void OnUndistort(class Fl_Button *b,void *)
 						double yi = (y - py) / fy;
 
 						double r = (sqrt(xi*xi + yi*yi ));
-						double xc = x * (1 + k1 * pow(r, 2) + k2 * pow(r, 4) + k3 * pow(r, 6)) + (2 * p1 * xi * yi + p2 * (pow(r, 2) + 2 * pow(xi, 2)));
-						double yc = y * (1 + k1 * pow(r, 2) + k2 * pow(r, 4) + k3 * pow(r, 6)) + (p1 * (pow(r, 2) + 2 * pow(yi + 0.0, 2)) + 2 * p2 * xi * yi);
+						double xc = xi * (1 + k1 * pow(r, 2) + k2 * pow(r, 4) + k3 * pow(r, 6)) + (2 * p1 * xi * yi + p2 * (pow(r, 2) + 2 * pow(xi, 2)));
+						double yc = yi * (1 + k1 * pow(r, 2) + k2 * pow(r, 4) + k3 * pow(r, 6)) + (p1 * (pow(r, 2) + 2 * pow(yi, 2)) + 2 * p2 * xi * yi);
 
 						int xcc = static_cast<int>((xc * fx) + px);
 						int ycc = static_cast<int>((yc * fy) + py);
 
-						const unsigned char* s = src + GetPixelOffset(img, xcc, ycc);
-						unsigned char*       d = dst + GetPixelOffset(img, x, y);
+                        if (xcc >= 0 && xcc < img->w() && ycc >= 0 && ycc < img->h())
+                        {
+						    const unsigned char* s = src + GetPixelOffset(img, xcc, ycc);
+						    unsigned char*       d = dst + GetPixelOffset(img, x, y);
 
-						for (int i = 0; i < img->d(); ++i)
-						{
-							*(d + i) = *(s + i);
-						}
+						    for (int i = 0; i < img->d(); ++i)
+						    {
+							    *(d + i) = *(s + i);
+						    }
+                        }
 					}
 				}
 
