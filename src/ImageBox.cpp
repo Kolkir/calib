@@ -83,8 +83,8 @@ void ImageBox::draw()
 			[&](const cv::Point2f& point)
 		{
 			fl_begin_polygon();
-			fl_circle(this->x() + static_cast<int>(point.y * sw), 
-					this->y() + static_cast<int>(point.x * sh), 3);
+			fl_circle(this->x() + static_cast<int>(point.x * sw), 
+					this->y() + static_cast<int>(point.y * sh), 3);
 			fl_end_polygon();
 		});
 	}
