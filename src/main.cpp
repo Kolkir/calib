@@ -15,9 +15,6 @@
 const double point_size = 1. / 72.;
 
 cv::Mat cameraMatrix, distCoeffs;
-std::vector<cv::Mat> rvecs, tvecs;
-std::vector<float> reprojErrs;
-double totalAvgErr = 0;
 std::unique_ptr<Fl_Text_Buffer> resultTextBuff;
 std::vector<std::vector<cv::Point2f> > imagesPoints;
 std::map<std::string, int> imagesPointsMap;
@@ -321,7 +318,7 @@ void OnUndistort(class Fl_Button *b,void *)
 		{
 			if (distCoeffs.rows == 5)
 			{
-				
+				Fl::wait();
 				double k1 = distCoeffs.at<double>(0, 0);
 				double k2 = distCoeffs.at<double>(1, 0);
 				double p1 = distCoeffs.at<double>(2, 0);
@@ -372,13 +369,6 @@ void OnUndistort(class Fl_Button *b,void *)
 
 				std::unique_ptr<Fl_RGB_Image> image(new Fl_RGB_Image(newData.data(), img->w(), img->h(), img->d(), 0));
 				Fl_Image* newImage = image->copy();
-				
-				/*
-				cv::Mat mat = FLImageToMat(img);
-				cv::Mat umat;
-				cv::undistort(mat, umat, cameraMatrix, distCoeffs);
-				Fl_Image* newImage = MatToFLImage(umat);
-				*/
 
 				ui->calibImageBox->image(newImage);
 				ui->calibImageBox->redraw();
@@ -410,29 +400,6 @@ void OnCalibSave(class Fl_Button *,void *)
 		cv::FileStorage fs(fc.value(), cv::FileStorage::WRITE);
 		fs << "camera_matrix" << cameraMatrix;
 		fs << "distortion_coefficients" << distCoeffs;
-
-		fs << "avg_reprojection_error" << totalAvgErr;
-		if( !reprojErrs.empty() )
-		fs << "per_view_reprojection_errors" << cv::Mat(reprojErrs);
-
-		if( !rvecs.empty() && !tvecs.empty() )
-		{
-			CV_Assert(rvecs[0].type() == tvecs[0].type());
-			cv::Mat bigmat((int)rvecs.size(), 6, rvecs[0].type());
-			for( int i = 0; i < (int)rvecs.size(); i++ )
-			{
-				cv::Mat r = bigmat(cv::Range(i, i+1), cv::Range(0,3));
-				cv::Mat t = bigmat(cv::Range(i, i+1), cv::Range(3,6));
-
-				CV_Assert(rvecs[i].rows == 3 && rvecs[i].cols == 1);
-				CV_Assert(tvecs[i].rows == 3 && tvecs[i].cols == 1);
-				//*.t() is MatExpr (not Mat) so we can use assignment operator
-				r = rvecs[i].t();
-				t = tvecs[i].t();
-			}
-			cvWriteComment( *fs, "a set of 6-tuples (rotation vector + translation vector) for each view", 0 );
-			fs << "extrinsic_parameters" << bigmat;
-		}
 	}
 }
 
@@ -448,37 +415,10 @@ static void calcChessboardCorners(const cv::Size& boardSize, double squareSize, 
 	}
 }
 
-static double computeReprojectionErrors(const std::vector<std::vector<cv::Point3f> >& objectPoints,
-										const std::vector<std::vector<cv::Point2f> >& imagePoints,
-										const std::vector<cv::Mat>& rvecs, const std::vector<cv::Mat>& tvecs,
-										const cv::Mat& cameraMatrix, const cv::Mat& distCoeffs,
-										std::vector<float>& perViewErrors)
-{
-	std::vector<cv::Point2f> imagePoints2;
-	int i, totalPoints = 0;
-	double totalErr = 0, err;
-	perViewErrors.resize(objectPoints.size());
-
-	for( i = 0; i < (int)objectPoints.size(); i++ )
-	{
-		cv::projectPoints(cv::Mat(objectPoints[i]), rvecs[i], tvecs[i], cameraMatrix, distCoeffs, imagePoints2);
-		err = cv::norm(cv::Mat(imagePoints[i]), cv::Mat(imagePoints2), CV_L2);
-		int n = (int)objectPoints[i].size();
-		perViewErrors[i] = (float)std::sqrt(err*err/n);
-		totalErr += err*err;
-		totalPoints += n;
-	}
-
-	return std::sqrt(totalErr/totalPoints);
-}
-
 bool runCalibration(const std::vector<std::vector<cv::Point2f> >& imagePoints,
 					cv::Size imageSize, cv::Size boardSize,
 					double squareSize, 
-					cv::Mat& cameraMatrix, cv::Mat& distCoeffs,
-					std::vector<cv::Mat>& rvecs, std::vector<cv::Mat>& tvecs,
-					std::vector<float>& reprojErrs,
-					double& totalAvgErr)
+					cv::Mat& cameraMatrix, cv::Mat& distCoeffs)
 {
 	cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
 	distCoeffs = cv::Mat::zeros(8, 1, CV_64F);
@@ -488,13 +428,12 @@ bool runCalibration(const std::vector<std::vector<cv::Point2f> >& imagePoints,
 
 	objectPoints.resize(imagePoints.size(),objectPoints[0]);
 
+	std::vector<cv::Mat> rvecs, tvecs;
+
 	double rms = cv::calibrateCamera(objectPoints, imagePoints, imageSize, cameraMatrix,
 					distCoeffs, rvecs, tvecs, CV_CALIB_FIX_K4|CV_CALIB_FIX_K5);
 
 	bool ok = cv::checkRange(cameraMatrix) && cv::checkRange(distCoeffs);
-
-	totalAvgErr = computeReprojectionErrors(objectPoints, imagePoints,
-				rvecs, tvecs, cameraMatrix, distCoeffs, reprojErrs);
 
 	return ok;
 }
@@ -519,6 +458,7 @@ void OnStartCalib(class Fl_Button* b, void*)
 
 		for (int i = 1; i <= ui->calibImageBrowser->size(); ++i)
 		{
+			Fl::wait();
 			const char* fileName = ui->calibImageBrowser->text(i);
 			Fl_Shared_Image *img = Fl_Shared_Image::get(fileName);
 			cv::Mat mat = FLImageToMat(img);
@@ -528,6 +468,7 @@ void OnStartCalib(class Fl_Button* b, void*)
 			std::vector<cv::Point2f> pointbuf;
 			bool found = cv::findChessboardCorners(mat, boardSize, pointbuf, CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS);
 
+			Fl::wait();
 			cv::Mat matGray;
 			cv::cvtColor(mat, matGray, CV_BGR2GRAY);
 			if(found)
@@ -544,8 +485,7 @@ void OnStartCalib(class Fl_Button* b, void*)
 		{
 			double squareSize = ui->cellSizeInput->value();
 			bool ok = runCalibration(imagesPoints, imageSize, boardSize, squareSize,
-									cameraMatrix, distCoeffs,
-									rvecs, tvecs, reprojErrs, totalAvgErr);
+									cameraMatrix, distCoeffs);
 			if (ok)
 			{
 				std::stringstream buf;
@@ -554,6 +494,13 @@ void OnStartCalib(class Fl_Button* b, void*)
 				buf << "Focal length Y (pixel rel. units) : " << cameraMatrix.at<double>(1,1) << "\n";
 				buf << "Principal point x : " << cameraMatrix.at<double>(0,2) << "\n";
 				buf << "Principal point y : " << cameraMatrix.at<double>(1,2) << "\n";
+
+				buf << "K1 : " << distCoeffs.at<double>(0, 0) << "\n";
+				buf << "K2 : " << distCoeffs.at<double>(1, 0) << "\n";
+				buf << "K3 : " << distCoeffs.at<double>(4, 0) << "\n";
+				buf << "P1 : " << distCoeffs.at<double>(2, 0) << "\n";
+				buf << "P2 : " << distCoeffs.at<double>(3, 0) << "\n";
+
 				resultTextBuff->text(buf.str().c_str());
 				OnCalibImageSelected(ui->calibImageBrowser, nullptr);
 				return;
