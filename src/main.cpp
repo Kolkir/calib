@@ -22,6 +22,89 @@ std::unique_ptr<Fl_Text_Buffer> resultTextBuff;
 std::vector<std::vector<cv::Point2f> > imagesPoints;
 std::map<std::string, int> imagesPointsMap;
 
+namespace
+{
+
+int GetPixelOffset(int x, int y, int width, int depth)
+{
+	return (x * depth) + (y * width * depth);
+}
+
+template<class T>
+int GetPixelOffset(T* img, int x, int y)
+{
+	return GetPixelOffset(x, y, img->w(),img->d());
+}
+
+cv::Mat FLImageToMat(const Fl_Image* img)
+{
+	cv::Mat mat = cv::Mat::zeros(img->h(), img->w(), CV_8UC3);
+
+	for (int x = 0; x < img->w(); ++x)
+	{
+		for (int y = 0; y < img->h(); ++y)
+		{
+			cv::Vec3b& cvp = mat.at<cv::Vec3b>(y, x);
+					
+			long index = GetPixelOffset(img, x, y);
+			switch ( img->count() ) 
+			{
+			case 1: 
+				{
+					const char *buf = img->data()[0];
+					switch ( img->d() ) 
+					{
+					case 1: 
+						{
+							cvp[0] = cvp[1] = cvp[2] = *(buf+index);
+							break;
+						}
+					case 3:
+						cvp[2] = *(buf+index+0);
+						cvp[1] = *(buf+index+1);
+						cvp[0] = *(buf+index+2);
+						break;
+					}
+					break;
+				}
+			}
+		}
+	}
+	return mat;
+}
+
+Fl_Image* MatToFLImage(const cv::Mat& mat)
+{
+	const int depth = 3;
+	std::vector<unsigned char> newData(mat.cols * mat.rows * depth);
+	unsigned char* buf = newData.data();
+
+	for (int x = 0; x < mat.cols; ++x)
+	{
+		for (int y = 0; y < mat.rows; ++y)
+		{
+			const cv::Vec3b& cvp = mat.at<cv::Vec3b>(y, x);
+					
+			long index = GetPixelOffset(x, y, mat.cols, depth);
+
+			*(buf+index+0) = cvp[2];
+			*(buf+index+1) = cvp[1];
+			*(buf+index+2) = cvp[0];
+		}
+	}
+
+	std::unique_ptr<Fl_RGB_Image> newImage(new Fl_RGB_Image(newData.data(), mat.cols,  mat.rows, depth, 0));
+	Fl_Image* rez = newImage->copy();
+	return rez;
+}
+
+double Round(double val)
+{
+	return val + (val >= 0 ? 0.5 : -0.5);
+}
+
+}
+
 int main (int argc, char *argv[]) 
 {
 	resultTextBuff.reset(new Fl_Text_Buffer());
@@ -227,15 +310,6 @@ void OnCalibImageSelected(class Fl_File_Browser* b, void*)
 	}
 }
 
-namespace
-{
-template<class T>
-int GetPixelOffset(T* img, int x, int y)
-{
-	return (x * img->d()) + (y * img->w() * img->d());
-}
-}
-
 void OnUndistort(class Fl_Button *b,void *)
 {
 	CalibUI* ui = reinterpret_cast<CalibUI*>(b->window()->user_data());
@@ -247,55 +321,77 @@ void OnUndistort(class Fl_Button *b,void *)
 		{
 			if (distCoeffs.rows == 5)
 			{
+				
 				double k1 = distCoeffs.at<double>(0, 0);
 				double k2 = distCoeffs.at<double>(1, 0);
-				double k3 = distCoeffs.at<double>(2, 0);
-				double p1 = distCoeffs.at<double>(3, 0);
-				double p2 = distCoeffs.at<double>(4, 0);
+				double p1 = distCoeffs.at<double>(2, 0);
+				double p2 = distCoeffs.at<double>(3, 0);
+				double k3 = distCoeffs.at<double>(4, 0);
 
 				double fx = cameraMatrix.at<double>(0, 0);
 				double fy = cameraMatrix.at<double>(1, 1);
-				double px = cameraMatrix.at<double>(0, 2);
-				double py = cameraMatrix.at<double>(1, 2);
+				double cx = cameraMatrix.at<double>(0, 2);
+				double cy = cameraMatrix.at<double>(1, 2);
 
 				std::vector<unsigned char> newData(img->w() * img->h() * img->d());
 
 				const unsigned char* src = reinterpret_cast<const unsigned char*>(img->data()[0]);
 				unsigned char* dst = newData.data();
 
-
 				for (int x = 0; x < img->w(); ++x)
 				{
 					for (int y = 0; y < img->h(); ++y)
 					{
-						double xi = (x - px) / fx;
-						double yi = (y - py) / fy;
+						double xi = (x - cx) / fx;
+						double yi = (y - cy) / fy;
+						
+						double r2 = xi * xi + yi * yi;
+						double x2 = xi*xi, y2 = yi*yi;
+						double _2xy = 2*xi*yi;
+						double kr = 1 + ((k3 * r2 + k2) * r2 + k1) * r2;
 
-						double r = (sqrt(xi*xi + yi*yi ));
-						double xc = xi * (1 + k1 * pow(r, 2) + k2 * pow(r, 4) + k3 * pow(r, 6)) + (2 * p1 * xi * yi + p2 * (pow(r, 2) + 2 * pow(xi, 2)));
-						double yc = yi * (1 + k1 * pow(r, 2) + k2 * pow(r, 4) + k3 * pow(r, 6)) + (p1 * (pow(r, 2) + 2 * pow(yi, 2)) + 2 * p2 * xi * yi);
+						double xc = xi * kr + p1 *_2xy + p2 * (r2 + 2 * x2);
+						double yc = yi * kr + p1 * (r2 + 2 * y2) + p2 * _2xy;
+						
+						int xcc = static_cast<int>(Round((xc * fx) + cx));
+						int ycc = static_cast<int>(Round((yc * fy) + cy));
 
-						int xcc = static_cast<int>((xc * fx) + px);
-						int ycc = static_cast<int>((yc * fy) + py);
+						if (xcc < img->w() && xcc >= 0 &&
+							ycc < img->h() && ycc >= 0)
+						{
+							const unsigned char* s = src + GetPixelOffset(img, xcc, ycc);
+							unsigned char*       d = dst + GetPixelOffset(img, x, y);
 
-                        if (xcc >= 0 && xcc < img->w() && ycc >= 0 && ycc < img->h())
-                        {
-						    const unsigned char* s = src + GetPixelOffset(img, xcc, ycc);
-						    unsigned char*       d = dst + GetPixelOffset(img, x, y);
-
-						    for (int i = 0; i < img->d(); ++i)
-						    {
-							    *(d + i) = *(s + i);
-						    }
-                        }
+							for (int i = 0; i < img->d(); ++i)
+							{
+								*(d + i) = *(s + i);
+							}
+						}
 					}
 				}
 
-				std::unique_ptr<Fl_RGB_Image> newImage(new Fl_RGB_Image(newData.data(), img->w(), img->h(), img->d(), 0));
-				ui->calibImageBox->image(newImage->copy());
+				std::unique_ptr<Fl_RGB_Image> image(new Fl_RGB_Image(newData.data(), img->w(), img->h(), img->d(), 0));
+				Fl_Image* newImage = image->copy();
+				
+				/*
+				cv::Mat mat = FLImageToMat(img);
+				cv::Mat umat;
+				cv::undistort(mat, umat, cameraMatrix, distCoeffs);
+				Fl_Image* newImage = MatToFLImage(umat);
+				*/
+
+				ui->calibImageBox->image(newImage);
 				ui->calibImageBox->redraw();
 		
-				delete img;
+				Fl_Shared_Image* simg = dynamic_cast<Fl_Shared_Image*>(img);
+				if (simg == nullptr)
+				{
+					delete img;
+				}
+				else
+				{
+					simg->release();
+				}
 			}
 		}
 	}
@@ -425,38 +521,7 @@ void OnStartCalib(class Fl_Button* b, void*)
 		{
 			const char* fileName = ui->calibImageBrowser->text(i);
 			Fl_Shared_Image *img = Fl_Shared_Image::get(fileName);
-			cv::Mat mat = cv::Mat::zeros(img->h(), img->w(), CV_8UC3);
-
-			for (int x = 0; x < img->w(); ++x)
-			{
-				for (int y = 0; y < img->h(); ++y)
-				{
-					cv::Vec3b& cvp = mat.at<cv::Vec3b>(y, x);
-					
-					long index = (x * img->d()) + (y * (img->w() + img->ld())* img->d()) ;
-					switch ( img->count() ) 
-					{
-					case 1: 
-						{
-							const char *buf = img->data()[0];
-							switch ( img->d() ) 
-							{
-							case 1: 
-								{
-									cvp[0] = cvp[1] = cvp[2] = *(buf+index);
-									break;
-								}
-							case 3:
-								cvp[2] = *(buf+index+0);
-								cvp[1] = *(buf+index+1);
-								cvp[0] = *(buf+index+2);
-								break;
-							}
-							break;
-						}
-					}
-				}
-			}
+			cv::Mat mat = FLImageToMat(img);
 
 			imageSize = mat.size();
 
@@ -472,7 +537,7 @@ void OnStartCalib(class Fl_Button* b, void*)
 				imagesPoints.push_back(pointbuf);
 				imagesPointsMap.insert(std::make_pair(fileName, imagesPoints.size() - 1));
 			}
-			//img->release();
+			img->release();
 		}
 
 		if (!imagesPoints.empty())
@@ -526,3 +591,4 @@ void OnRealSizeView(class Fl_Check_Button* c,void*)
 		ui->imageScroll->redraw();
 	}
 }
+
