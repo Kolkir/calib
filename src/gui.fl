@@ -2,16 +2,21 @@
 version 1.0300 
 header_name {.h} 
 code_name {.cxx}
+decl {class AppData;} {public global
+} 
+
 class CalibUI {open
 } {
+  decl {AppData* appData;} {public local
+  }
   Function {CalibUI()} {open
   } {
     Fl_Window mainWindow {
       label {Camera calibration tool} open
-      xywh {888 168 640 480} type Double resizable size_range {640 480 0 0} visible
+      xywh {927 128 640 480} type Double resizable size_range {640 480 0 0} visible
     } {
       Fl_Wizard wizard {open
-        xywh {0 0 640 480} resizable
+        xywh {0 0 646 480} resizable
       } {
         Fl_Group {} {open
           xywh {0 0 640 480}
@@ -22,13 +27,13 @@ class CalibUI {open
             Fl_Value_Input vertCornersInput {
               label {Vertical corners count:}
               user_data this
-              callback OnPatternChanged
+              callback OnPatternChanged selected
               xywh {175 35 30 24} minimum 1 maximum 100 step 1 value 6
             }
             Fl_Value_Input horizCornersInput {
               label {Horisontal corners count:}
               user_data this
-              callback OnPatternChanged selected
+              callback OnPatternChanged
               xywh {175 65 30 24} minimum 1 maximum 100 step 1 value 9
             }
             Fl_Value_Input cellSizeInput {
@@ -46,7 +51,7 @@ class CalibUI {open
               label {Pattern settings}
               xywh {0 0 640 30} labelfont 3
             }
-            Fl_Scroll imageScroll {open
+            Fl_Scroll patternImageScroll {open
               xywh {210 35 425 400} box DOWN_BOX resizable
             } {
               Fl_Box patternImageBox {
@@ -60,11 +65,6 @@ class CalibUI {open
             xywh {0 440 640 40}
           } {
             Fl_Button {} {
-              label Next
-              callback OnPatternNext
-              xywh {562 450 64 20}
-            }
-            Fl_Button {} {
               label {Print pattern}
               callback OnPrintPattern
               xywh {455 450 90 20}
@@ -74,9 +74,14 @@ class CalibUI {open
               callback OnFitToPrinter
               xywh {350 450 87 20}
             }
+            Fl_Button {} {
+              label Next
+              callback OnPatternNext
+              xywh {562 450 64 20}
+            }
           }
         }
-        Fl_Group {} {open
+        Fl_Group {} {
           xywh {0 0 640 480} hide
         } {
           Fl_Group {} {open
@@ -136,7 +141,7 @@ class CalibUI {open
           }
         }
         Fl_Group {} {open
-          xywh {0 0 640 480} hide
+          xywh {0 0 646 480} hide
         } {
           Fl_Box {} {
             label {Calibration process}
@@ -150,22 +155,102 @@ class CalibUI {open
             }
           }
           Fl_Group {} {open
-            xywh {0 435 640 45}
+            xywh {0 435 646 45}
           } {
-            Fl_Button {} {
-              label Prev
-              callback OnCalibPrev
-              xywh {563 447 64 20}
-            }
             Fl_Button {} {
               label Calibrate
               callback OnStartCalib
-              xywh {397 447 64 20}
+              xywh {321 447 64 20}
             }
             Fl_Button {} {
               label {Save result}
               callback OnCalibSave
-              xywh {473 447 80 20}
+              xywh {397 447 80 20}
+            }
+            Fl_Button {} {
+              label Prev
+              callback OnCalibPrev
+              xywh {487 447 64 20}
+            }
+            Fl_Button {} {
+              label Next
+              callback OnCalibNext
+              xywh {565 447 64 20}
+            }
+          }
+        }
+        Fl_Group {} {open
+          xywh {0 0 646 480} hide
+        } {
+          Fl_Box {} {
+            label {Lens \\ Sensor measurements}
+            xywh {0 0 640 30} labelfont 3
+          }
+          Fl_Group {} {open
+            xywh {0 33 640 406}
+          } {
+            Fl_Value_Input sensorWidthInput {
+              label {Sensor width:}
+              xywh {103 51 40 24} maximum 100
+            }
+            Fl_Value_Input sensorHeightInput {
+              label {Sensor height:}
+              xywh {103 76 40 24} maximum 100
+            }
+            Fl_Value_Input focalLengthInput {
+              label {Focal length:}
+              xywh {103 112 40 24} maximum 100
+            }
+            Fl_Value_Input measurePixelLength {
+              label {Length   (px):}
+              xywh {103 149 40 24} maximum 10000
+            }
+            Fl_Check_Button firstPointCheck {
+              label {First point}
+              callback OnChangeMeasureMode
+              xywh {15 222 90 15} down_box DOWN_BOX value 1 align 16
+            }
+            Fl_Scroll measureImageScroll {open
+              xywh {152 33 485 400} box DOWN_FRAME
+            } {
+              Fl_Box mesureImageBox {
+                xywh {152 33 485 400}
+                code0 {\#include "measurebox.h"}
+                class MeasureBox
+              }
+            }
+            Fl_Value_Input {} {
+              label {Length (mm):}
+              xywh {103 175 40 24}
+            }
+          }
+          Fl_Group {} {open
+            xywh {0 435 646 45}
+          } {
+            Fl_Button {} {
+              label {Zomm In}
+              callback OnMeasureZoomIn
+              xywh {325 447 64 20}
+            }
+            Fl_Button {} {
+              label {Zoom Out}
+              callback OnMeasureZoomOut
+              xywh {405 447 64 20}
+            }
+            Fl_Button {} {
+              label Calculate
+              callback OnMeasureCalculate
+              xywh {485 447 64 20}
+            }
+            Fl_Button {} {
+              label Prev
+              callback OnMeasurePrev
+              xywh {566 447 64 20}
+            }
+            Fl_Button {} {
+              label {Load image}
+              callback OnLoadMeasureImage
+              xywh {230 448 80 20}
             }
           }
         }

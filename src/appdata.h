@@ -16,6 +16,13 @@ public:
 	std::unique_ptr<Fl_Text_Buffer> resultTextBuff;
 	std::vector<std::vector<cv::Point2f> > imagesPoints;
 	std::map<std::string, int> imagesPointsMap;
+	std::unique_ptr<Fl_Image> measureImage;
+	double measureImageZoomValue;
+
+	AppData()
+		: measureImageZoomValue(1)
+	{
+	}
 };
 
 #endif

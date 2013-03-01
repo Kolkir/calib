@@ -15,7 +15,7 @@ void OnPatternChanged(class Fl_Value_Input* i, void*)
 		ui->patternImageBox->SetPattern(ui->vertCornersInput->value(), 
 										ui->horizCornersInput->value(),
 										ui->cellSizeInput->value());
-		ui->patternImageBox->redraw();
+		ui->mainWindow->redraw();
 	}
 }
 
@@ -43,7 +43,7 @@ void OnPrintPattern(class Fl_Button* b, void* )
 			}
 			p->end_job();
 		}
-		ui->patternImageBox->redraw();
+		ui->mainWindow->redraw();
 	}
 }
 
@@ -66,7 +66,7 @@ void OnFitToPrinter(class Fl_Button* b, void*)
 
 			p->end_job();
 		}
-		ui->patternImageBox->redraw();
+		ui->mainWindow->redraw();
 	}
 }
 
