@@ -89,8 +89,11 @@ void OnMeasureCalculate(class Fl_Button *b,void *)
 		{
 			if (sensorHeight != 0 && sensorWidth != 0 && focalLength == 0)
 			{
-				double avSize = (sensorHeight + sensorWidth) / 2;
-
+				double pixelPerMM1 = ui->appData->measureImage->h() / sensorHeight;
+				double pixelPerMM2 = ui->appData->measureImage->w() / sensorWidth;
+				double pixelPerMM = (pixelPerMM1 + pixelPerMM2) / 2;
+				double imgLenMM = pixelLength / pixelPerMM;
+				double magnification = imgLenMM / realLength;
 				
 			}
 			else if (sensorHeight == 0 && sensorWidth == 0 && focalLength != 0)
@@ -98,8 +101,8 @@ void OnMeasureCalculate(class Fl_Button *b,void *)
 				double magnification = focalLength / (distToObj - focalLength);
 				double imgLenMM = realLength * magnification;
 				double pixelPerMM = pixelLength / imgLenMM;
-				ui->sensorHeightInput->value(ui->appData->measureImage->h() * pixelPerMM);
-				ui->sensorWidthInput->value(ui->appData->measureImage->w() * pixelPerMM);
+				ui->sensorHeightInput->value(ui->appData->measureImage->h() / pixelPerMM);
+				ui->sensorWidthInput->value(ui->appData->measureImage->w() / pixelPerMM);
 			}
 			else
 			{
