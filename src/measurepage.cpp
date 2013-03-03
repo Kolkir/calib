@@ -74,6 +74,38 @@ void OnMeasureCalculate(class Fl_Button *b,void *)
 	CalibUI* ui = reinterpret_cast<CalibUI*>(b->window()->user_data());
 	if (ui != nullptr)
 	{
+		double sensorHeight = ui->sensorHeightInput->value();
+		double sensorWidth = ui->sensorWidthInput->value();
+		double focalLength = ui->focalLengthInput->value();
+		double pixelLength = ui->measurePixelLength->value();
+		double realLength = ui->measureRealLength->value();
+		double distToObj = ui->distToObjInput->value();
+
+		if (pixelLength == 0 || realLength == 0 || distToObj == 0)
+		{
+			fl_alert("You have to enter pixel length, real length and distance to the object");
+		}
+		else
+		{
+			if (sensorHeight != 0 && sensorWidth != 0 && focalLength == 0)
+			{
+				double avSize = (sensorHeight + sensorWidth) / 2;
+
+				
+			}
+			else if (sensorHeight == 0 && sensorWidth == 0 && focalLength != 0)
+			{
+				double magnification = focalLength / (distToObj - focalLength);
+				double imgLenMM = realLength * magnification;
+				double pixelPerMM = pixelLength / imgLenMM;
+				ui->sensorHeightInput->value(ui->appData->measureImage->h() * pixelPerMM);
+				ui->sensorWidthInput->value(ui->appData->measureImage->w() * pixelPerMM);
+			}
+			else
+			{
+				fl_alert("You have to enter focal length or sensor size either!");
+			}
+		}
 	}
 }
 

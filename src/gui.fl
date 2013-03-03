@@ -205,6 +205,14 @@ class CalibUI {open
               label {Length   (px):}
               xywh {103 149 40 24} maximum 10000
             }
+			Fl_Value_Input measureRealLength {
+              label {Length (mm):}
+              xywh {103 175 40 24}
+            }
+			Fl_Value_Input distToObjInput {
+              label {Distance (mm):}
+              xywh {103 175 40 24}
+            }
             Fl_Check_Button firstPointCheck {
               label {First point}
               callback OnChangeMeasureMode
@@ -218,10 +226,6 @@ class CalibUI {open
                 code0 {\#include "measurebox.h"}
                 class MeasureBox
               }
-            }
-            Fl_Value_Input {} {
-              label {Length (mm):}
-              xywh {103 175 40 24}
             }
           }
           Fl_Group {} {open

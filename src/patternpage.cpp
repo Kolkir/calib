@@ -2,6 +2,8 @@
 
 #include <FL/Fl_Printer.H>
 
+#include <memory>
+
 namespace
 {
 	const double point_size = 1. / 72.;

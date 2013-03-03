@@ -1,5 +1,7 @@
 #include "utils.h"
 
+#include <memory>
+
 int GetPixelOffset(int x, int y, int width, int depth)
 {
 	return (x * depth) + (y * width * depth);
