@@ -199,48 +199,12 @@ class CalibUI {open
             }
             Fl_Value_Input focalLengthInput {
               label {Focal length:}
-              xywh {103 112 40 24} maximum 100
-            }
-            Fl_Value_Input measurePixelLength {
-              label {Length   (px):}
-              xywh {103 149 40 24} maximum 10000
-            }
-			Fl_Value_Input measureRealLength {
-              label {Length (mm):}
-              xywh {103 175 40 24}
-            }
-			Fl_Value_Input distToObjInput {
-              label {Distance (mm):}
-              xywh {103 175 40 24}
-            }
-            Fl_Check_Button firstPointCheck {
-              label {First point}
-              callback OnChangeMeasureMode
-              xywh {15 222 90 15} down_box DOWN_BOX value 1 align 16
-            }
-            Fl_Scroll measureImageScroll {open
-              xywh {152 33 485 400} box DOWN_FRAME
-            } {
-              Fl_Box mesureImageBox {
-                xywh {152 33 485 400}
-                code0 {\#include "measurebox.h"}
-                class MeasureBox
-              }
+              xywh {103 102 40 24} maximum 100
             }
           }
           Fl_Group {} {open
             xywh {0 435 646 45}
           } {
-            Fl_Button {} {
-              label {Zomm In}
-              callback OnMeasureZoomIn
-              xywh {325 447 64 20}
-            }
-            Fl_Button {} {
-              label {Zoom Out}
-              callback OnMeasureZoomOut
-              xywh {405 447 64 20}
-            }
             Fl_Button {} {
               label Calculate
               callback OnMeasureCalculate
@@ -250,11 +214,6 @@ class CalibUI {open
               label Prev
               callback OnMeasurePrev
               xywh {566 447 64 20}
-            }
-            Fl_Button {} {
-              label {Load image}
-              callback OnLoadMeasureImage
-              xywh {230 448 80 20}
             }
           }
         }
